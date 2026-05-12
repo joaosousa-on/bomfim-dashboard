@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Bomfim Contabilidade – Dashboard Notas</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --blue:       #1B4F8A;
+      --blue-dark:  #133A6A;
+      --blue-light: #EBF1FA;
+      --green:      #8DC63F;
+      --green-dark: #6FA02E;
+      --green-light:#EFF7E1;
+      --red:        #D94F4F;
+      --red-light:  #FDF2F2;
+      --bg:         #F2F5FA;
+      --white:      #FFFFFF;
+      --text:       #1C2A3A;
+      --muted:      #7A8A9C;
+      --border:     #DDE5F0;
+      --shadow:     0 1px 4px rgba(27,79,138,.09);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+    /* Header */
+    header { background: var(--blue); padding: 0 32px; height: 64px; display: flex; align-items: center; justify-content: space-between; }
+    header img { height: 38px; }
+    .sync-badge { font-size: .75rem; color: rgba(255,255,255,.6); background: rgba(255,255,255,.1); border-radius: 6px; padding: 4px 12px; }
+    .sync-badge strong { color: #fff; }
+
+    /* Filtro */
+    .filtro-bar { background: var(--white); border-bottom: 1px solid var(--border); padding: 12px 32px; display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap; }
+    .filtro-grupo { display: flex; flex-direction: column; gap: 5px; }
+    .filtro-label { font-size: .7rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+    .filtro-row { display: flex; align-items: center; gap: 6px; }
+
+    .btn-dias { border: 1px solid var(--border); background: var(--white); color: var(--muted); border-radius: 6px; padding: 6px 14px; font-size: .82rem; font-weight: 600; cursor: pointer; transition: all .15s; }
+    .btn-dias:hover { border-color: var(--blue); color: var(--blue); }
+    .btn-dias.ativo { background: var(--blue); border-color: var(--blue); color: #fff; }
+
+    .input-data { border: 1px solid var(--border); border-radius: 6px; padding: 6px 10px; font-size: .84rem; color: var(--text); background: var(--white); outline: none; transition: border .15s; }
+    .input-data:focus { border-color: var(--blue); }
+
+    .sep { color: var(--muted); font-size: .82rem; padding: 0 2px; }
+
+    .divider-v { width: 1px; height: 32px; background: var(--border); margin: 0 4px; align-self: center; }
+
+    .btn-consultar { background: var(--green); color: #fff; border: none; border-radius: 6px; padding: 8px 22px; font-size: .88rem; font-weight: 700; cursor: pointer; transition: background .15s; display: flex; align-items: center; gap: 6px; align-self: flex-end; }
+    .btn-consultar:hover { background: var(--green-dark); }
+    .btn-consultar:disabled { background: #b0bec5; cursor: not-allowed; }
+
+    /* Tabs */
+    .tabs-bar { background: var(--white); border-bottom: 1px solid var(--border); padding: 0 32px; display: flex; }
+    .tab-btn { padding: 14px 28px; font-size: .9rem; font-weight: 600; color: var(--muted); border: none; background: none; cursor: pointer; border-bottom: 3px solid transparent; transition: all .15s; display: flex; align-items: center; gap: 8px; }
+    .tab-btn:hover { color: var(--blue); }
+    .tab-btn.ativo { color: var(--blue); border-bottom-color: var(--blue); }
+    .tab-dot { width: 9px; height: 9px; border-radius: 50%; }
+    .tab-btn.ativo .tab-dot-imp  { background: var(--green); }
+    .tab-btn.ativo .tab-dot-pend { background: var(--red); }
+    .tab-btn:not(.ativo) .tab-dot { background: var(--border); }
+
+    /* Conteúdo */
+    .content { padding: 28px 32px; }
+
+    /* Cards */
+    .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px; }
+    @media (max-width: 700px) { .cards { grid-template-columns: 1fr 1fr; } }
+    .card { background: var(--white); border: 1px solid var(--border); border-radius: 10px; padding: 20px 22px; box-shadow: var(--shadow); }
+    .card-label { font-size: .7rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-bottom: 10px; }
+    .card-value { font-size: 2rem; font-weight: 700; line-height: 1; color: var(--text); }
+    .card-sub { font-size: .75rem; color: var(--muted); margin-top: 6px; }
+    .card-accent-green { border-top: 3px solid var(--green); }
+    .card-accent-blue  { border-top: 3px solid var(--blue); }
+    .card-accent-red   { border-top: 3px solid var(--red); }
+
+    /* Gráfico */
+    .chart-card { background: var(--white); border: 1px solid var(--border); border-radius: 10px; padding: 22px 24px; box-shadow: var(--shadow); margin-bottom: 24px; }
+    .chart-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+    .chart-title { font-size: .92rem; font-weight: 600; color: var(--text); }
+
+    /* Tabela */
+    .table-card { background: var(--white); border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow); overflow: hidden; }
+    .table-header { padding: 16px 20px; border-bottom: 1px solid var(--border); font-size: .88rem; font-weight: 600; color: var(--text); }
+    table { width: 100%; border-collapse: collapse; }
+    th { text-align: left; font-size: .7rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); padding: 10px 16px; background: #FAFBFD; border-bottom: 1px solid var(--border); }
+    td { padding: 11px 16px; border-bottom: 1px solid #F0F3F8; font-size: .88rem; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #FAFBFD; }
+
+    .badge { display: inline-block; padding: 2px 9px; border-radius: 99px; font-size: .72rem; font-weight: 600; }
+    .badge-alto   { background: #FEE2E2; color: #B91C1C; }
+    .badge-medio  { background: #FEF3C7; color: #92400E; }
+    .badge-ok     { background: var(--green-light); color: var(--green-dark); }
+    .badge-neutro { background: #F3F4F6; color: #6B7280; }
+
+    .num   { font-weight: 700; }
+    .green { color: var(--green-dark); }
+    .red   { color: var(--red); }
+    .muted { color: var(--muted); }
+
+    .diff { font-size: .75rem; }
+    .diff-pos { color: var(--green-dark); }
+    .diff-neg { color: var(--red); }
+    .diff-neu { color: var(--muted); }
+
+    /* Erro */
+    .erro-box { background: var(--red-light); border: 1px solid #F5BABA; border-radius: 10px; padding: 16px 20px; color: var(--red); margin-bottom: 20px; display: none; font-size: .88rem; }
+
+    /* Spinner */
+    .spinner { display: inline-block; width: 13px; height: 13px; border: 2px solid #cdd5e0; border-top-color: var(--blue); border-radius: 50%; animation: spin .6s linear infinite; vertical-align: middle; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+<!-- Header -->
+<header>
+  <img src="/static/logo.png" alt="Bomfim Contabilidade"/>
+  <div class="sync-badge">Atualizado em: <strong id="ultima-sync">—</strong></div>
+</header>
+
+<!-- Filtro -->
+<div class="filtro-bar">
+
+  <!-- Por período -->
+  <div class="filtro-grupo">
+    <span class="filtro-label">Por período</span>
+    <div class="filtro-row">
+      <button class="btn-dias" onclick="setDias(7)"  id="d7">7 dias</button>
+      <button class="btn-dias" onclick="setDias(14)" id="d14">14 dias</button>
+      <button class="btn-dias" onclick="setDias(21)" id="d21">21 dias</button>
+      <button class="btn-dias ativo" onclick="setDias(30)" id="d30">30 dias</button>
+    </div>
+  </div>
+
+  <div class="divider-v"></div>
+
+  <!-- Por data específica -->
+  <div class="filtro-grupo">
+    <span class="filtro-label">Por data específica</span>
+    <div class="filtro-row">
+      <input type="date" class="input-data" id="data-de"  oninput="onDataChange()" placeholder="De"/>
+      <span class="sep">até</span>
+      <input type="date" class="input-data" id="data-ate" oninput="onDataChange()" placeholder="Até"/>
+      <button class="btn-dias" id="btn-limpar" onclick="limparDatas()" style="display:none">✕ Limpar</button>
+    </div>
+  </div>
+
+  <div class="divider-v"></div>
+
+  <button class="btn-consultar" id="btn-consultar" onclick="consultar()">↻ Consultar</button>
+</div>
+
+<!-- Tabs -->
+<div class="tabs-bar">
+  <button class="tab-btn ativo" id="tab-imp"  onclick="setTab('imp')">
+    <span class="tab-dot tab-dot-imp"></span> Importadas
+  </button>
+  <button class="tab-btn" id="tab-pend" onclick="setTab('pend')">
+    <span class="tab-dot tab-dot-pend"></span> Pendentes
+  </button>
+</div>
+
+<!-- Conteúdo -->
+<div class="content">
+  <div class="erro-box" id="erro-box">
+    <strong>Erro ao carregar dados:</strong> <span id="erro-msg"></span>
+  </div>
+
+  <!-- Cards -->
+  <div class="cards">
+    <div class="card card-accent-green">
+      <div class="card-label" id="lbl-total">Total</div>
+      <div class="card-value" id="card-total">—</div>
+      <div class="card-sub"  id="card-periodo">—</div>
+    </div>
+    <div class="card card-accent-blue">
+      <div class="card-label">Média por Dia</div>
+      <div class="card-value" id="card-media">—</div>
+      <div class="card-sub">no período consultado</div>
+    </div>
+    <div class="card card-accent-red">
+      <div class="card-label" id="lbl-maximo">Máximo em um Dia</div>
+      <div class="card-value" id="card-maximo">—</div>
+      <div class="card-sub">pico do período</div>
+    </div>
+  </div>
+
+  <!-- Gráfico -->
+  <div class="chart-card">
+    <div class="chart-header">
+      <span class="chart-title" id="chart-title">—</span>
+    </div>
+    <canvas id="grafico" height="90"></canvas>
+  </div>
+
+  <!-- Tabela -->
+  <div class="table-card">
+    <div class="table-header" id="table-title">—</div>
+    <table>
+      <thead>
+        <tr>
+          <th>Data</th>
+          <th>Dia</th>
+          <th>Quantidade</th>
+          <th>vs Média</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody id="tbody">
+        <tr><td colspan="5" class="muted" style="padding:20px 16px">
+          Clique em Consultar para carregar os dados.
+        </td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+  let graf      = null;
+  let diasAtual = 30;
+  let abaAtual  = 'imp';
+  let cache     = { imp: null, pend: null };
+  let usandoData = false;
+
+  // ── Filtro período ──────────────────────────────────────────────────────────
+  function setDias(n) {
+    diasAtual  = n;
+    usandoData = false;
+    [7,14,21,30].forEach(d =>
+      document.getElementById('d'+d).classList.toggle('ativo', d === n)
+    );
+  }
+
+  // ── Filtro data específica ──────────────────────────────────────────────────
+  function onDataChange() {
+    const de  = document.getElementById('data-de').value;
+    const ate = document.getElementById('data-ate').value;
+    usandoData = !!(de && ate);
+    document.getElementById('btn-limpar').style.display = usandoData ? '' : 'none';
+    if (usandoData) {
+      [7,14,21,30].forEach(d =>
+        document.getElementById('d'+d).classList.remove('ativo')
+      );
+    }
+  }
+
+  function limparDatas() {
+    document.getElementById('data-de').value  = '';
+    document.getElementById('data-ate').value = '';
+    usandoData = false;
+    document.getElementById('btn-limpar').style.display = 'none';
+    setDias(diasAtual || 30);
+  }
+
+  // ── Montar query string ─────────────────────────────────────────────────────
+  function queryParams() {
+    if (usandoData) {
+      const de  = document.getElementById('data-de').value;
+      const ate = document.getElementById('data-ate').value;
+      return `de=${de}&ate=${ate}`;
+    }
+    return `dias=${diasAtual}`;
+  }
+
+  // ── Abas ────────────────────────────────────────────────────────────────────
+  function setTab(aba) {
+    abaAtual = aba;
+    document.getElementById('tab-imp').classList.toggle('ativo',  aba === 'imp');
+    document.getElementById('tab-pend').classList.toggle('ativo', aba === 'pend');
+    if (cache[aba]) renderizar(cache[aba], aba);
+  }
+
+  // ── Consulta ────────────────────────────────────────────────────────────────
+  async function consultar() {
+    const btn = document.getElementById('btn-consultar');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Carregando…';
+    document.getElementById('erro-box').style.display = 'none';
+    cache = { imp: null, pend: null };
+
+    try {
+      const qs = queryParams();
+      const [rImp, rPend] = await Promise.all([
+        fetch(`/api/importadas?${qs}`).then(r => r.json()),
+        fetch(`/api/pendentes?${qs}`).then(r => r.json()),
+      ]);
+
+      if (rImp.erro || rPend.erro) { mostrarErro(rImp.erro || rPend.erro); return; }
+
+      cache.imp  = rImp;
+      cache.pend = rPend;
+
+      document.getElementById('ultima-sync').textContent = rImp.atualizado_em;
+      renderizar(cache[abaAtual], abaAtual);
+
+    } catch (e) {
+      mostrarErro(e.message);
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '↻ Consultar';
+    }
+  }
+
+  function mostrarErro(msg) {
+    document.getElementById('erro-box').style.display = 'block';
+    document.getElementById('erro-msg').textContent   = msg;
+  }
+
+  // ── Renderização ─────────────────────────────────────────────────────────────
+  function renderizar(d, aba) {
+    const isImp = aba === 'imp';
+    const cor   = isImp ? '#8DC63F' : '#D94F4F';
+
+    // Cards
+    document.getElementById('lbl-total').textContent  = isImp ? 'Total Importadas' : 'Total Pendentes';
+    document.getElementById('lbl-maximo').textContent = isImp ? 'Máximo em um Dia' : 'Dia com Mais Pendências';
+    document.getElementById('card-total').textContent  = d.total.toLocaleString('pt-BR');
+    document.getElementById('card-media').textContent  = d.media.toLocaleString('pt-BR');
+    document.getElementById('card-maximo').textContent = d.maximo.toLocaleString('pt-BR');
+    document.getElementById('card-periodo').textContent =
+      `de ${d.periodo_ini} a ${d.periodo_fim}`;
+
+    // Gráfico
+    document.getElementById('chart-title').textContent =
+      isImp ? 'Notas Importadas por Dia de Inserção'
+            : 'Notas Pendentes por Data de Emissão';
+
+    const labels = d.dias.map(r => `${r.data_fmt.slice(0,5)} ${r.dia_abrev}`);
+    const qtds   = d.dias.map(r => r.quantidade);
+    const media  = Array(d.dias.length).fill(d.media);
+
+    if (graf) {
+      graf.data.labels = labels;
+      graf.data.datasets[0].data              = qtds;
+      graf.data.datasets[0].backgroundColor   = cor;
+      graf.data.datasets[1].data              = media;
+      graf.data.datasets[1].borderColor       = cor + '88';
+      graf.update();
+    } else {
+      graf = new Chart(document.getElementById('grafico').getContext('2d'), {
+        data: {
+          labels,
+          datasets: [
+            { type:'bar',  label: isImp ? 'Importadas' : 'Pendentes',
+              data: qtds, backgroundColor: cor, borderRadius: 5, order: 2 },
+            { type:'line', label: 'Média',
+              data: media, borderColor: cor+'88', borderDash:[5,3],
+              borderWidth: 1.5, pointRadius: 0, fill: false, order: 1, tension: 0 },
+          ],
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: { display: false },
+            tooltip: { callbacks: {
+              label: c => ` ${c.dataset.label}: ${c.parsed.y.toLocaleString('pt-BR')}`
+            }}
+          },
+          scales: {
+            x: { ticks:{ color:'#9BAABF', font:{size:11}, maxRotation:45 }, grid:{ display:false } },
+            y: { ticks:{ color:'#9BAABF' }, grid:{ color:'#EEF2F8' }, beginAtZero:true }
+          }
+        }
+      });
+    }
+
+    // Tabela
+    document.getElementById('table-title').textContent =
+      isImp ? 'Detalhe por Dia — Importadas' : 'Detalhe por Dia — Pendentes';
+
+    const tbody = document.getElementById('tbody');
+    if (!d.dias.length) {
+      tbody.innerHTML = '<tr><td colspan="5" class="muted" style="padding:20px 16px">Nenhum dado encontrado.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = d.dias.map(r => {
+      const qtdCls = isImp ? 'green num' : 'red num';
+
+      // vs média
+      let diffHtml = '—';
+      const v = r.diff_media;
+      if (v > 0)      diffHtml = `<span class="diff diff-pos">+${v.toLocaleString('pt-BR')}</span>`;
+      else if (v < 0) diffHtml = `<span class="diff diff-neg">${v.toLocaleString('pt-BR')}</span>`;
+      else            diffHtml = `<span class="diff diff-neu">= média</span>`;
+
+      // badge status
+      let badge = '';
+      if (!isImp) {
+        const hoje = new Date();
+        const emissao = new Date(r.data_ref + 'T12:00:00');
+        const dias_atras = Math.floor((hoje - emissao) / 86400000);
+        if      (dias_atras >= 14) badge = '<span class="badge badge-alto">+14 dias</span>';
+        else if (dias_atras >= 7)  badge = '<span class="badge badge-medio">+7 dias</span>';
+        else                       badge = '<span class="badge badge-ok">Recente</span>';
+      } else {
+        if (r.quantidade === 0)         badge = '<span class="badge badge-neutro">Sem registro</span>';
+        else if (v > 0)                 badge = '<span class="badge badge-ok">Acima da média</span>';
+        else if (v < 0)                 badge = '<span class="badge badge-medio">Abaixo da média</span>';
+        else                            badge = '<span class="badge badge-neutro">Na média</span>';
+      }
+
+      return `
+        <tr>
+          <td>${r.data_fmt}</td>
+          <td>${r.dia_nome}</td>
+          <td class="${qtdCls}">${r.quantidade.toLocaleString('pt-BR')}</td>
+          <td>${diffHtml}</td>
+          <td>${badge}</td>
+        </tr>`;
+    }).join('');
+  }
+</script>
+</body>
+</html>
